@@ -264,7 +264,7 @@ API.v1.addRoute('chat.update', { authRequired: true }, {
 
 		// Permission checks are already done in the updateMessage method, so no need to duplicate them
 		Meteor.runAsUser(this.userId, () => {
-			Meteor.call('updateMessage', { _id: msg._id, msg: this.bodyParams.text, rid: msg.rid });
+			Meteor.call('updateMessage', { _id: msg._id, msg: this.bodyParams.text, rid: msg.rid, attachments: this.bodyParams.attachments });
 		});
 
 		const [message] = normalizeMessagesForUser([Messages.findOneById(msg._id)], this.userId);
@@ -566,5 +566,29 @@ API.v1.addRoute('chat.unfollowMessage', { authRequired: true }, {
 		}
 		Meteor.runAsUser(this.userId, () => Meteor.call('unfollowMessage', { mid }));
 		return API.v1.success();
+	},
+});
+
+API.v1.addRoute('chat.sendMessageToBot', { authRequired: true }, {
+	post() {
+		check(this.bodyParams, Match.ObjectIncluding({
+			type: String,
+		}));
+
+		const { type, request_payload } = this.bodyParams;
+
+		if (!request_payload) {
+			return API.v1.failure('The required "request_payload" param is missing.');
+		}
+
+		const payload = Meteor.runAsUser(this.userId, () => Meteor.call('sendMessageToBot', type, request_payload));
+
+		if (!payload) {
+			return API.v1.failure('Error sending payload to Bot');
+		}
+
+		return API.v1.success({
+			payload,
+		});
 	},
 });
