@@ -587,8 +587,6 @@ API.v1.addRoute('chat.sendMessageToBot', { authRequired: true }, {
 			return API.v1.failure('Error sending payload to Bot');
 		}
 
-		return API.v1.success({
-			payload,
-		});
+		return API.v1.success();
 	},
 });
