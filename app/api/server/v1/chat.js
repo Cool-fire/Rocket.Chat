@@ -252,7 +252,7 @@ API.v1.addRoute('chat.update', { authRequired: true }, {
 		}));
 
 		const msg = Messages.findOneById(this.bodyParams.msgId);
-
+		const { attachments } = this.bodyParams;
 		// Ensure the message exists
 		if (!msg) {
 			return API.v1.failure(`No message found with the id of "${ this.bodyParams.msgId }".`);
@@ -260,6 +260,10 @@ API.v1.addRoute('chat.update', { authRequired: true }, {
 
 		if (this.bodyParams.roomId !== msg.rid) {
 			return API.v1.failure('The room id provided does not match where the message is from.');
+		}
+
+		if (attachments && !Array.isArray(attachments)) {
+			return API.v1.failure('The Attachments field should be an Array');
 		}
 
 		// Permission checks are already done in the updateMessage method, so no need to duplicate them
@@ -573,18 +577,19 @@ API.v1.addRoute('chat.sendMessageToBot', { authRequired: true }, {
 	post() {
 		check(this.bodyParams, Match.ObjectIncluding({
 			type: String,
+			requestPayload: Object,
 		}));
 
-		const { type, request_payload } = this.bodyParams;
+		const { type, requestPayload } = this.bodyParams;
 
-		if (!request_payload) {
-			return API.v1.failure('The required "request_payload" param is missing.');
+		if (!requestPayload) {
+			return API.v1.failure('The required "requestPayload" param is missing.');
 		}
 
-		const payload = Meteor.runAsUser(this.userId, () => Meteor.call('sendMessageToBot', type, request_payload));
+		const result = Meteor.runAsUser(this.userId, () => Meteor.call('sendMessageToBot', type, requestPayload));
 
-		if (!payload) {
-			return API.v1.failure('Error sending payload to Bot');
+		if (!result) {
+			return API.v1.failure('Error while sending requestPayload to webHookUrl of Bot');
 		}
 
 		return API.v1.success();
