@@ -252,7 +252,7 @@ API.v1.addRoute('chat.update', { authRequired: true }, {
 		}));
 
 		const msg = Messages.findOneById(this.bodyParams.msgId);
-
+		const { attachments } = this.bodyParams;
 		// Ensure the message exists
 		if (!msg) {
 			return API.v1.failure(`No message found with the id of "${ this.bodyParams.msgId }".`);
@@ -262,9 +262,13 @@ API.v1.addRoute('chat.update', { authRequired: true }, {
 			return API.v1.failure('The room id provided does not match where the message is from.');
 		}
 
+		if (attachments && !Array.isArray(attachments)) {
+			return API.v1.failure('The Attachments field should be an Array');
+		}
+
 		// Permission checks are already done in the updateMessage method, so no need to duplicate them
 		Meteor.runAsUser(this.userId, () => {
-			Meteor.call('updateMessage', { _id: msg._id, msg: this.bodyParams.text, rid: msg.rid });
+			Meteor.call('updateMessage', { _id: msg._id, msg: this.bodyParams.text, rid: msg.rid, attachments: this.bodyParams.attachments });
 		});
 
 		const [message] = normalizeMessagesForUser([Messages.findOneById(msg._id)], this.userId);
@@ -565,6 +569,29 @@ API.v1.addRoute('chat.unfollowMessage', { authRequired: true }, {
 			throw new Meteor.Error('The required "mid" body param is missing.');
 		}
 		Meteor.runAsUser(this.userId, () => Meteor.call('unfollowMessage', { mid }));
+		return API.v1.success();
+	},
+});
+
+API.v1.addRoute('chat.sendMessageToBot', { authRequired: true }, {
+	post() {
+		check(this.bodyParams, Match.ObjectIncluding({
+			type: String,
+			requestPayload: Object,
+		}));
+
+		const { type, requestPayload } = this.bodyParams;
+
+		if (!requestPayload) {
+			return API.v1.failure('The required "requestPayload" param is missing.');
+		}
+
+		const result = Meteor.runAsUser(this.userId, () => Meteor.call('sendMessageToBot', type, requestPayload));
+
+		if (!result) {
+			return API.v1.failure('Error while sending requestPayload to webHookUrl of Bot');
+		}
+
 		return API.v1.success();
 	},
 });
